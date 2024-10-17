@@ -1,0 +1,76 @@
+.manage-item-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.add-item, .edit-item {
+  margin: 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.add-item input, .add-item select, .edit-item input, .edit-item select {
+  flex: 1;
+  min-width: 150px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.add-item button, .edit-item button {
+  padding: 8px 12px;
+  background-color: #660809;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-item button:hover, .edit-item button:hover {
+  background-color: #850b0c;
+}
+
+.item-list table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.item-list th, .item-list td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.item-list th {
+  background-color: #f4f4f4;
+}
+
+.item-list tr:hover {
+  background-color: #f5f5f5;
+}
+
+.college-section {
+  margin-bottom: 20px;
+}
+
+.college-header {
+  font-size: 1.2em;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #ececec;
+  padding: 8px;
+}
+
+img {
+  width: auto;
+ height: 250px;
+}
+
+@media (max-width: 768px) {
+  .add-item, .edit-item {
+    flex-direction: column;
+  }
+}
