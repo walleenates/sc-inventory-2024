@@ -1,13 +1,18 @@
+// src/components/ApproveRequest.js
+
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db, storage } from '../firebase/firebase-config';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Camera from '../components/Camera';
 import emailjs from 'emailjs-com';
+import * as XLSX from 'xlsx'; // Import the XLSX library
 import './ApproveRequest.css';
 
 const categories = ["Equipment", "Office Supplies", "Books", "Electrical Parts"];
 const colleges = ["CCS", "COC", "CED", "CBA", "BED", "COE"];
+const offices = ["Office A", "Office B", "Office C"]; 
+const departments = ["Department X", "Department Y", "Department Z"]; 
 
 const ApproveRequest = () => {
   const [requestDetails, setRequestDetails] = useState({
@@ -17,6 +22,8 @@ const ApproveRequest = () => {
     imageUrl: '',
     category: '',
     uniqueId: '',
+    office: '',
+    department: '',
   });
   const [image, setImage] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -26,7 +33,13 @@ const ApproveRequest = () => {
   const [emailAddresses, setEmailAddresses] = useState({});
   const [approvalDates, setApprovalDates] = useState({});
   
-  // State to manage open/close for college and category sections
+  // Sorting and date range state
+  const [timeframe, setTimeframe] = useState('monthly');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // State for open/close college and category sections
   const [openColleges, setOpenColleges] = useState({});
   const [openCategories, setOpenCategories] = useState({});
 
@@ -112,6 +125,8 @@ const ApproveRequest = () => {
       imageUrl: '',
       category: '',
       uniqueId: '',
+      office: '',
+      department: '',
     });
     setImage(null);
     setEditingRequest(null);
@@ -180,6 +195,8 @@ const ApproveRequest = () => {
       imageUrl: request.imageUrl,
       category: request.category,
       uniqueId: request.uniqueId || '',
+      office: request.office || '', // Handle office field
+      department: request.department || '', // Handle department field
     });
     setImage(null);
   };
@@ -218,9 +235,20 @@ const ApproveRequest = () => {
     return emailPattern.test(email);
   };
 
+  // Function to filter requests by date range
+  const filteredRequests = () => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    return requests.filter(request => {
+      const requestDate = new Date(request.requestDate).getTime();
+      return requestDate >= start && requestDate <= end;
+    });
+  };
+
   // Group requests by college and then by category
   const groupedRequests = () => {
-    return requests.reduce((acc, request) => {
+    const requestsToDisplay = filteredRequests();
+    return requestsToDisplay.reduce((acc, request) => {
       if (!acc[request.college]) {
         acc[request.college] = {};
       }
@@ -265,7 +293,12 @@ const ApproveRequest = () => {
                           <p><strong>Item Name:</strong> {request.itemName}</p>
                           <p><strong>Request Date:</strong> {new Date(request.requestDate).toLocaleDateString()}</p>
                           <p><strong>Unique ID:</strong> {request.uniqueId}</p>
-                          {request.imageUrl && <img src={request.imageUrl} alt="Uploaded" width="100" />}
+                          {request.imageUrl && (
+                            <>
+                              <img src={request.imageUrl} alt="Uploaded" width="100" />
+                              <a href={request.imageUrl} download style={{ display: 'block', marginTop: '5px' }}>Download Image</a>
+                            </>
+                          )}
                           {request.approved && (
                             <>
                               <p><strong>Approval Date:</strong> {new Date(request.approvalDate).toLocaleDateString()}</p>
@@ -300,7 +333,7 @@ const ApproveRequest = () => {
                           <button onClick={() => handleDelete(request.id)}>Delete</button>
                         </div>
                       </li>
-                    ))}
+                    ))} 
                   </ul>
                 )}
               </div>
@@ -309,6 +342,45 @@ const ApproveRequest = () => {
         )}
       </div>
     ));
+  };
+
+  // Function to handle report generation
+  const handleReportDownload = () => {
+    const reportData = requests.map((request) => ({
+      'Item Name': request.itemName,
+      'College': request.college,
+      'Request Date': new Date(request.requestDate).toLocaleDateString(),
+      'Category': request.category,
+      'Unique ID': request.uniqueId,
+      'Office': request.office,
+      'Department': request.department,
+      'Approved': request.approved ? 'Yes' : 'No',
+      'Approval Date': request.approved ? new Date(request.approvalDate).toLocaleDateString() : 'N/A',
+    }));
+
+    // Create a new workbook
+    const ws = XLSX.utils.json_to_sheet(reportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Requests Report');
+
+    // Save to file
+    XLSX.writeFile(wb, 'requests_report.xlsx');
+  };
+
+  // Function to handle date range for semester reports
+  const handleSemesterDates = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Set start and end dates based on current month
+    if (currentMonth < 6) { // January to June
+      setStartDate(`${currentYear}-01-01`);
+      setEndDate(`${currentYear}-06-30`);
+    } else { // July to December
+      setStartDate(`${currentYear}-07-01`);
+      setEndDate(`${currentYear}-12-31`);
+    }
   };
 
   return (
@@ -329,6 +401,29 @@ const ApproveRequest = () => {
             ))}
           </select>
         </label>
+        
+        {/* New Office Dropdown */}
+        <label>
+          Office:
+          <select name="office" value={requestDetails.office} onChange={handleInputChange}>
+            <option value="">Select Office (Optional)</option>
+            {offices.map((office) => (
+              <option key={office} value={office}>{office}</option>
+            ))}
+          </select>
+        </label>
+
+        {/* New Department Dropdown */}
+        <label>
+          Department:
+          <select name="department" value={requestDetails.department} onChange={handleInputChange}>
+            <option value="">Select Department (Optional)</option>
+            {departments.map((department) => (
+              <option key={department} value={department}>{department}</option>
+            ))}
+          </select>
+        </label>
+
         <label>
           Request Date:
           <input type="date" name="requestDate" value={requestDetails.requestDate} onChange={handleInputChange} required />
@@ -354,6 +449,40 @@ const ApproveRequest = () => {
         {isCameraOpen && <Camera onCapture={handleImageCapture} />}
         <button type="submit">{editingRequest ? 'Update Request' : 'Submit Request'}</button>
       </form>
+      
+      <div>
+        <label>Sort by:</label>
+        <select value={timeframe} onChange={(e) => {
+          setTimeframe(e.target.value);
+          if (e.target.value === 'semester') {
+            handleSemesterDates(); // Set semester dates
+          } else {
+            setStartDate(''); // Reset dates
+            setEndDate('');
+          }
+        }}>
+          <option value="monthly">Monthly</option>
+          <option value="semester">Semester</option>
+          <option value="annual">Annual</option>
+        </select>
+        
+        {timeframe === 'annual' && (
+          <div>
+            <label>Select Year:</label>
+            <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} />
+          </div>
+        )}
+        
+        <div>
+          <label>Start Date:</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <label>End Date:</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </div>
+        
+        <button onClick={handleReportDownload}>Download Report</button>
+      </div>
+      
       {renderRequests()}
     </div>
   );

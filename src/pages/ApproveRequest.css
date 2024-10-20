@@ -1,119 +1,128 @@
-/* ApproveRequest.css */
+/* src/components/ApproveRequest.css */
 
-.approve-request-container {
+.approve-request {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #f9f9f9;
+  background-color: #f8f9fa; /* Light background for contrast */
   border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
 }
 
-h1, h2 {
+h1 {
   text-align: center;
-  color: #660809;
+  color: #660809; /* Theme color */
+  margin-bottom: 20px;
 }
 
-.approve-request-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
+h3, h4 {
+  color: #660809; /* Theme color */
+  cursor: pointer;
 }
 
-.approve-request-form label {
-  display: flex;
-  flex-direction: column;
-  font-size: 14px;
-  color: #990c12;
+h3:hover, h4:hover {
+  color: #a1121a; /* Darker shade on hover */
 }
 
-.approve-request-form input[type="text"],
-.approve-request-form input[type="number"],
-.approve-request-form input[type="date"],
-.approve-request-form select,
-.approve-request-form input[type="file"] {
-  padding: 8px;
-  margin-top: 5px;
-  border: 1px solid #660809;
-  border-radius: 4px;
+.error-message {
+  color: red;
+  text-align: center;
+  margin-bottom: 20px;
 }
 
-.approve-request-form button {
-  grid-column: span 2;
+form {
+  background-color: #ffffff; /* White background for form */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin: 10px 0 5px;
+  color: #333; /* Darker text for labels */
+}
+
+input[type="text"],
+input[type="date"],
+select,
+input[type="email"],
+input[type="file"] {
+  width: 100%;
   padding: 10px;
-  background-color: #660809;
-  color: #f9f9f9;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+input[type="file"] {
+  padding: 3px; /* Adjusted padding for file input */
+}
+
+button {
+  background-color: #660809; /* Theme color */
+  color: white;
+  padding: 10px 15px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease;
 }
 
-.approve-request-form button:hover {
-  background-color: #990c12;
+button:hover {
+  background-color: #a1121a; /* Darker shade on hover */
 }
 
-.error-message {
-  color: #990c12;
-  text-align: center;
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 20px 0;
-}
-
-li {
-  background-color: #f9f9f9;
-  border: 1px solid #660809;
-  border-radius: 8px;
+.college-section,
+.category-section {
+  background-color: #ffffff; /* White background for sections */
+  margin: 10px 0;
   padding: 15px;
-  margin-bottom: 10px;
-}
-
-li p {
-  margin: 5px 0;
-  color: #660809;
-}
-
-li .request-image {
-  width: 100%;
-  max-width: 150px;
   border-radius: 8px;
-  margin-top: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-li button {
-  padding: 5px 10px;
-  background-color: #660809;
-  color: #f9f9f9;
-  border: none;
+.category-section ul {
+  list-style-type: none;
+  padding-left: 0; /* Remove default padding */
+}
+
+.category-section li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eaeaea; /* Light border between items */
+}
+
+.category-section li:last-child {
+  border-bottom: none; /* Remove border from last item */
+}
+
+img {
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-top: 10px;
-  transition: background-color 0.3s;
 }
 
-li button:hover {
-  background-color: #990c12;
+button[type="button"] {
+  background-color: #28a745; /* Green button for camera */
 }
 
-@media (max-width: 600px) {
-  .approve-request-form {
-    grid-template-columns: 1fr;
-  }
-
-  .approve-request-form button {
-    grid-column: span 1;
-  }
+button[type="button"]:hover {
+  background-color: #218838; /* Darker green on hover */
 }
-.notification-success {
-  color: green; /* Adjust the color as desired */
+
+input[type="email"] {
+  margin-bottom: 5px; /* Space below email input */
+}
+/* Add this to ApproveRequest.css */
+
+a {
+  color: #660809; /* Theme color */
+  text-decoration: none;
   font-weight: bold;
-  margin-top: 10px;
+}
+
+a:hover {
+  text-decoration: underline; /* Underline on hover */
 }
