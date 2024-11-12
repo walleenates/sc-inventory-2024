@@ -1,57 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../firebase/firebase-config';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db, storage } from '../firebase/firebase-config'; // Ensure db is imported
+import { collection, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { db } from '../firebase/firebase-config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import './Dashboard.css';
 
 const DashboardPage = () => {
   const [totalItems, setTotalItems] = useState(0);
-  const [collegeItemCounts, setCollegeItemCounts] = useState({});
+  const [categoryItemCounts, setCategoryItemCounts] = useState({ nonAcademic: 0, academic: 0 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCollege, setSelectedCollege] = useState(null);
-  const [approvedRequestsCount, setApprovedRequestsCount] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [totalApprovedRequests, setTotalApprovedRequests] = useState(0); // Track total approved requests
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null); // Error state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [profileImage, setProfileImage] = useState('userdashboard.png'); // Default profile image
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  const userName = "Admin"; // Replace with dynamic user data if available
+  const userName = "Admin";
 
   useEffect(() => {
+    // Fetch total items and group by category (Non Academic, Academic)
     const itemsCollection = collection(db, 'items');
     const unsubscribeItems = onSnapshot(itemsCollection, (snapshot) => {
       const items = snapshot.docs.map(doc => doc.data());
       setTotalItems(items.length);
 
-      const collegeMap = items.reduce((acc, item) => {
-        if (item.college) {
-          acc[item.college] = (acc[item.college] || 0) + 1;
-        }
-        return acc;
-      }, {});
+      const categoryMap = { nonAcademic: 0, academic: 0 };
 
-      setCollegeItemCounts(collegeMap);
-      setLoading(false); // Set loading to false after fetching data
+      items.forEach(item => {
+        if (item.category === "Non Academic") {
+          categoryMap.nonAcademic += 1;
+        } else if (item.category === "Academic") {
+          categoryMap.academic += 1;
+        }
+      });
+
+      setCategoryItemCounts(categoryMap);
+      setLoading(false);
     }, (error) => {
-      setError(error.message); // Handle errors
-      setLoading(false); // Set loading to false in case of error
+      setError(error.message);
+      setLoading(false);
     });
 
+    // Fetch approved requests
     const requestsCollection = collection(db, 'requests');
-    const approvedRequestsQuery = query(requestsCollection, where('approved', '==', true));
-    const unsubscribeRequests = onSnapshot(approvedRequestsQuery, (snapshot) => {
-      const requests = snapshot.docs.map(doc => doc.data());
-      const collegeMap = requests.reduce((acc, request) => {
-        if (request.college && typeof request.quantity === 'number') {
-          acc[request.college] = (acc[request.college] || 0) + request.quantity; // Use quantity instead of itemCount
-        }
-        return acc;
-      }, {});
-
-      setApprovedRequestsCount(collegeMap);
+    const unsubscribeRequests = onSnapshot(requestsCollection, (snapshot) => {
+      const totalApproved = snapshot.docs.filter(doc => doc.data().approved).length;
+      setTotalApprovedRequests(totalApproved); // Set total approved requests
     }, (error) => {
-      setError(error.message); // Handle errors
+      setError(error.message);
     });
 
     return () => {
@@ -64,8 +64,8 @@ const DashboardPage = () => {
     setSearchTerm(event.target.value.toLowerCase());
   };
 
-  const handleCollegeClick = (college) => {
-    setSelectedCollege(college === selectedCollege ? null : college);
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category === selectedCategory ? null : category);
   };
 
   const toggleDropdown = () => {
@@ -81,16 +81,32 @@ const DashboardPage = () => {
     }
   };
 
-  const filteredColleges = Object.keys(collegeItemCounts).filter(college =>
-    college.toLowerCase().includes(searchTerm)
-  );
+  const handleImageClick = () => {
+    // Trigger file input when the image is clicked
+    fileInputRef.current.click();
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const storageRef = ref(storage, `profile-images/${file.name}`);
+      uploadBytes(storageRef, file)
+        .then(() => getDownloadURL(storageRef))
+        .then((url) => {
+          setProfileImage(url); // Set the new profile image
+        })
+        .catch((error) => {
+          console.error("Error uploading profile image:", error);
+        });
+    }
+  };
 
   if (loading) {
-    return <div>Loading...</div>; // Loading message
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return <div>Error: {error}</div>; // Error message
+    return <div>Error: {error}</div>;
   }
 
   return (
@@ -100,13 +116,26 @@ const DashboardPage = () => {
         <div className="search-and-profile">
           <input
             type="text"
-            placeholder="Search colleges..."
+            placeholder="Search categories..."
             className="search-input"
             value={searchTerm}
             onChange={handleSearchChange}
           />
           <div className="profile">
-            <img src="userdashboard.png" alt="Profile Icon" className="profile-icon" />
+            {/* Profile Image that can be clicked to change */}
+            <img
+              src={profileImage}
+              alt="Profile Icon"
+              className="profile-icon"
+              onClick={handleImageClick}
+              style={{ cursor: 'pointer' }}
+            />
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleImageUpload}
+            />
             <span className="user-name">{userName}</span>
             <button className="dropdown-toggle" onClick={toggleDropdown}>
               &#9662;
@@ -124,40 +153,48 @@ const DashboardPage = () => {
       <main className="dashboard-content">
         <section className="cards">
           <div className="card item-card">
-            <h3>ITEMS</h3>
-            <p>Total Items: {totalItems}</p>
+            <Link to="/manage-item" className="ditems">
+              <h3>ITEMS</h3>
+              <p>Total Items: {totalItems}</p>
+            </Link>
           </div>
+
+          {/* Non Academic Folder */}
           <div className="card folder-card">
-            <h3>FOLDER</h3>
+            <Link to="/manage-item" className="link">
+              <h3>Non Academic</h3>
+            </Link>
             <div className="folder-list">
-              {filteredColleges.length > 0 ? (
-                filteredColleges.map((college) => (
-                  <div key={college} className="folder">
-                    <h4 onClick={() => handleCollegeClick(college)}>
-                      {college}
-                    </h4>
-                    {selectedCollege === college && (
-                      <ul className="item-list">
-                        {Object.entries(collegeItemCounts).map(([key, count]) => (
-                          key === college && (
-                            <li key={key}>Items: {count}</li>
-                          )
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p>No folders to display</p>
+              <h4 onClick={() => handleCategoryClick('Non Academic')}>Non Academic</h4>
+              {selectedCategory === 'Non Academic' && (
+                <ul className="item-list">
+                  <li>Total Items: {categoryItemCounts.nonAcademic}</li>
+                </ul>
               )}
             </div>
           </div>
+
+          {/* Academic Folder */}
+          <div className="card folder-card">
+            <Link to="/manage-item" className="link">
+              <h3>Academic</h3>
+            </Link>
+            <div className="folder-list">
+              <h4 onClick={() => handleCategoryClick('Academic')}>Academic</h4>
+              {selectedCategory === 'Academic' && (
+                <ul className="item-list">
+                  <li>Total Items: {categoryItemCounts.academic}</li>
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Approved Purchase Requests */}
           <div className="card approve-request-card">
-            <h3>APPROVE PURCHASE REQUEST</h3>
-            <p>Total Requested Items: {Object.values(approvedRequestsCount).reduce((a, b) => a + b, 0)}</p>
-            {Object.entries(approvedRequestsCount).map(([college, count]) => (
-              <p key={college}>{college}: {count} items</p>
-            ))}
+            <Link to="/approve-request" className="link">
+              <h3>PURCHASED REQUEST</h3>
+            </Link>
+            <p>Total Approved Requests: {totalApprovedRequests}</p> {/* Display total approved requests */}
           </div>
         </section>
       </main>

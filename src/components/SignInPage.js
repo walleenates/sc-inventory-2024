@@ -78,16 +78,16 @@ const SignInPage = () => {
           <div className="or-container">
             <span>or</span>
           </div>
-          <div className="other-login-options">
-            <button type="button" className="google-signin" onClick={handleGoogleSignIn}>
-              <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google Logo" />
-              Sign in with Google
-            </button>
-            <button type="button" className="facebook-signin" onClick={handleFacebookSignIn}>
-              <img src="https://www.facebook.com/images/fb_icon_325x325.png" alt="Facebook Logo" />
-              Sign in with Facebook
-            </button>
-          </div>
+            <div className="other-login-options">
+              <button type="button" className="google-signin" onClick={handleGoogleSignIn}>
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google Logo" />
+                Sign in with Google
+              </button>
+              <button type="button" className="facebook-signin" onClick={handleFacebookSignIn}>
+                <img src="https://www.facebook.com/images/fb_icon_325x325.png" alt="Facebook Logo" />
+                Sign in with Facebook
+              </button>
+            </div>
           <div className="new-account">
             <span>New here? </span><a href="/create-account" className="create-account">Create an account</a>
           </div>

@@ -1,12 +1,12 @@
-/* CSS for the Sign-In Page */
+
 
 .signin-container {
   display: flex;
   height: 100vh;
-  flex-direction: row; /* Default layout for larger screens */
+  flex-direction: row;
 }
 
-/* Left side styling */
+
 .signin-left {
   flex: 1;
   display: flex;
@@ -37,9 +37,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 50px;
+  padding: 0 10px;
   background-color: white;
-  /* Optional: Center the form horizontally */
   align-items: center;
 }
 
@@ -54,11 +53,11 @@ h2 {
   display: flex;
   flex-direction: column;
   width: 100%; /* Make form take full width of its container */
-  max-width: 400px; /* Optional: Adjust to fit design */
+  max-width: 300px; /* Optional: Adjust to fit design */
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1px;
 }
 
 input[type="email"],
@@ -95,21 +94,38 @@ button.login-button:hover {
 }
 
 .or-container {
-  margin: 20px 0;
+  margin: 10px;
   text-align: center;
+  margin-left:300px;
 }
 
 .or-container span {
   font-size: 18px;
   font-weight: bold;
-  color: #666;
+  color: #272727;
+  
 }
 
 .other-login-options {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 20px; /* Adds spacing between the buttons */
+  margin-top: 20px;
+}
+.other-login-options button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; /* Adds spacing between the image and text */
+  padding: 10px 20px;
+  width: 100%;
+  max-width: 300px; /* Ensures a consistent width for both buttons */
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .google-signin,
@@ -127,11 +143,24 @@ button.login-button:hover {
 }
 
 .google-signin {
-  background-color: #4285F4;
+  background-color: #fff;
+  color: #555;
+  border: 1px solid #ddd;
 }
 
+.google-signin:hover {
+  background-color: #f5f5f5;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 .facebook-signin {
-  background-color: #3B5998;
+  background-color: #1877f2;
+  color: #fff;
+  border: none;
+}
+
+.facebook-signin:hover {
+  background-color: #155ec6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .google-signin img,
@@ -140,14 +169,17 @@ button.login-button:hover {
   height: 20px;
   margin-right: 10px;
 }
-
+.other-login-options img {
+  width: 24px; /* Ensures a consistent size for the logos */
+  height: 24px;
+}
 .form-actions {
   text-align: center;
   margin-top: 10px; /* Adjust to place the link below the password field */
 }
 
 .forgot-password {
-  color: #0BACD4;
+  color: #424242;
   text-decoration: none;
   font-weight: bold;
   display: block;
@@ -161,10 +193,11 @@ button.login-button:hover {
 .new-account {
   text-align: center;
   margin-top: 20px;
+  margin-left: 90px  ;
 }
 
 .create-account {
-  color: #0BACD4;
+  color: #424242;
   font-weight: bold;
   text-decoration: none;
 }

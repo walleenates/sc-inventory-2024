@@ -1,5 +1,3 @@
-// src/components/ManageItem.js
-
 import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../firebase/firebase-config';
 import {
@@ -11,15 +9,74 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import JsBarcode from 'jsbarcode';
 import Camera from '../components/Camera';
-
 import './ManageItem.css';
 
-const colleges = ["CCS", "COC", "CED", "CBA", "BED", "COE"];
-const offices = ["Office A", "Office B", "Office C"]; // New offices array
-const departments = ["Department X", "Department Y", "Department Z"]; // New departments array
+// Categories
+const categories = ["Non Academic", "Academic"];
+const nonAcademicOptions = [
+  "FINANCE OFFICE",
+  "OFFICE OF THE PRESIDENT",
+  "HUMAN RESOURCE",
+  "LIBRARY",
+  "MANAGEMENT INFORMATION SYSTEM",
+  "OFFICE OF THE REGISTRAR",
+  "OFFICE OF THE STUDENT AFFAIRS AND SERVICES",
+  "RESEARCH AND CREATIVE WORKS",
+  "ACCOUNTING",
+  "CLINIC",
+  "GUIDANCE",
+  "NATIONAL SERVICE TRAINING PROGRAM",
+];
+const academicColleges = [
+  "COLLEGE OF ARTS AND SCIENCES",
+  "COLLEGE OF BUSINESS ADMINISTRATION",
+  "COLLEGE OF COMPUTER STUDIES",
+  "COLLEGE OF CRIMINOLOGY",
+  "COLLEGE OF EDUCATION",
+  "COLLEGE OF ENGINEERING",
+  "BED"
+];
+const academicPrograms = {
+  "COLLEGE OF ARTS AND SCIENCES": [
+    "Bachelor Of Arts In English Language",
+    "Bachelor Of Arts In Political Science",
+    "Batsilyer Ng Sining Sa Filipino / Bachelor Of Arts In Filipino"
+  ],
+  "COLLEGE OF BUSINESS ADMINISTRATION": [
+    "Bachelor Of Science In Business Administration Major In Marketing Management",
+    "Bachelor Of Science In Business Administration Major In Operation Management",
+    "Bachelor Of Science In Business Administration Major In Financial Management",
+    "Bachelor Of Science In Business Administration Major In Human Resource Management"
+  ],
+  "COLLEGE OF COMPUTER STUDIES": [
+    "BS Computer Science",
+    "BS Information Technology"
+  ],
+  "COLLEGE OF CRIMINOLOGY": [],
+  "COLLEGE OF EDUCATION": [
+    "Bachelor In Elementary Education",
+    "Bachelor In Secondary Education Major In English",
+    "Bachelor In Secondary Education Major In Filipino",
+    "Bachelor In Secondary Education Major In Math"
+  ],
+  "COLLEGE OF ENGINEERING": [
+    "Bachelor Of Science In Civil Engineering",
+    "Bachelor Of Science In Electrical Engineering",
+    "Bachelor Of Science In Mechanical Engineering",
+    "Bachelor Of Science In Electronics Engineering",
+    "Bachelor Of Science In Computer Engineering"
+  ],
+  "BED": [
+    "JUNIOR HIGH SCHOOL",
+    "SENIOR HIGH SCHOOL ACCOUNTANCY, BUSINESS & MANAGEMENT (ABM)",
+    "SENIOR HIGH SCHOOL HUMANITIES & SOCIAL SCIENCES (HUMSS)",
+    "SENIOR HIGH SCHOOL SCIENCE, TECHNOLOGY, ENGINEERING, AND MATHEMATICS (STEM)"
+  ]
+};
+
 const itemTypes = ["Equipment", "Office Supplies", "Books", "Electrical Parts"];
 
 const Barcode = ({ value }) => {
@@ -42,29 +99,24 @@ const Barcode = ({ value }) => {
 
 const ManageItem = () => {
   const [items, setItems] = useState([]);
-  const [newItem, setNewItem] = useState("");
-  const [selectedCollege, setSelectedCollege] = useState(""); // College selection is now optional
-  const [selectedOffice, setSelectedOffice] = useState(""); // New state for selected office
-  const [selectedDepartment, setSelectedDepartment] = useState(""); // New state for selected department
-  const [quantity, setQuantity] = useState(1);
-  const [amount, setAmount] = useState(0);
-  const [requestedDate, setRequestedDate] = useState("");
-  const [supplier, setSupplier] = useState("");
-  const [itemType, setItemType] = useState("Equipment");
+  const [formData, setFormData] = useState({
+    newItem: "",
+    quantity: "",
+    amount: "",
+    requestedDate: "",
+    supplier: "",
+    itemType: "Equipment",
+    category: "",
+    subCategory: "",
+    program: "",
+    imagePreview: null,
+  });
   const [editItem, setEditItem] = useState(null);
-  const [editValue, setEditValue] = useState("");
-  const [editCollege, setEditCollege] = useState("");
-  const [editOffice, setEditOffice] = useState(""); // New edit state for office
-  const [editDepartment, setEditDepartment] = useState(""); // New edit state for department
-  const [editQuantity, setEditQuantity] = useState(1);
-  const [editAmount, setEditAmount] = useState(0);
-  const [editRequestedDate, setEditRequestedDate] = useState("");
-  const [editSupplier, setEditSupplier] = useState("");
-  const [editItemType, setEditItemType] = useState("Equipment");
-  const [imagePreview, setImagePreview] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [visibleColleges, setVisibleColleges] = useState({});
   const [saveOption, setSaveOption] = useState('local');
+  const [visibleGroups, setVisibleGroups] = useState({});
+  const [viewBy, setViewBy] = useState('category');
+  const [notification, setNotification] = useState(null); // Changed to object or null
 
   useEffect(() => {
     const itemsCollection = collection(db, "items");
@@ -79,71 +131,107 @@ const ManageItem = () => {
     return () => unsubscribe();
   }, []);
 
-  const generateBarcode = () => {
-    return `ITEM-${Math.random().toString(36).substr(2, 9)}`;
+  const generateBarcode = () => `ITEM-${Math.random().toString(36).substr(2, 9)}`;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const getSubCategoryOptions = () => {
+    switch (formData.category) {
+      case "Non Academic":
+        return nonAcademicOptions;
+      case "Academic":
+        return academicColleges;
+      default:
+        return [];
+    }
+  };
+
+  const getProgramOptions = () => {
+    return academicPrograms[formData.subCategory] || [];
   };
 
   const handleAddItem = async () => {
-    if (newItem && quantity > 0 && amount >= 0 && requestedDate && supplier && itemType) {
-      const newBarcode = generateBarcode();
-      try {
-        await addDoc(collection(db, "items"), {
-          text: newItem,
-          college: selectedCollege || null, // Optional: Set to null if not selected
-          collegeType: selectedCollege ? 'College' : selectedDepartment ? 'Department' : null, // Determine type
-          office: selectedOffice || null, // Optional: Set to null if not selected
-          department: selectedDepartment || null, // Optional: Set to null if not selected
-          quantity,
-          amount,
-          requestedDate: new Date(requestedDate),
-          supplier,
-          itemType,
-          barcode: newBarcode,
-          image: imagePreview,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        });
-        clearFields();
-      } catch (error) {
-        console.error("Error adding document: ", error);
-      }
+    const { newItem, quantity, amount, requestedDate, supplier, itemType, category, subCategory, program, imagePreview } = formData;
+
+    // Check for missing or invalid fields
+    if (!newItem || quantity <= 0 || amount < 0 || !requestedDate || !supplier || !itemType || !category || !subCategory) {
+      setNotification({ message: "Please fill in all required fields with valid values.", type: "error" });
+      return;
+    }
+
+    const newBarcode = generateBarcode();
+    try {
+      await addDoc(collection(db, "items"), {
+        text: newItem,
+        quantity,
+        amount,
+        requestedDate: new Date(requestedDate),
+        supplier,
+        itemType,
+        category,
+        subCategory,
+        program: category === "Academic" && subCategory !== "COLLEGE OF CRIMINOLOGY" ? program : "",
+        barcode: newBarcode,
+        image: imagePreview,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      clearFields();
+      setNotification({ message: "Item added successfully!", type: "success" });
+
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      setNotification({ message: "Error adding item. Please try again.", type: "error" });
     }
   };
 
   const handleEditItem = (item) => {
     setEditItem(item);
-    setEditValue(item.text);
-    setEditCollege(item.college);
-    setEditOffice(item.office || ""); // Handle undefined values
-    setEditDepartment(item.department || ""); // Handle undefined values
-    setEditQuantity(item.quantity);
-    setEditAmount(item.amount);
-    setEditRequestedDate(item.requestedDate.toDate().toISOString().substr(0, 10));
-    setEditSupplier(item.supplier);
-    setEditItemType(item.itemType);
-    setImagePreview(item.image);
+    setFormData({
+      newItem: item.text,
+      quantity: item.quantity,
+      amount: item.amount,
+      requestedDate: item.requestedDate.toDate().toISOString().substr(0, 10),
+      supplier: item.supplier,
+      itemType: item.itemType,
+      category: item.category,
+      subCategory: item.subCategory,
+      program: item.program || "",
+      imagePreview: item.image,
+    });
   };
 
   const handleSaveEdit = async () => {
-    if (editItem && editValue && editQuantity > 0 && editAmount >= 0 && editRequestedDate && editSupplier && editItemType) {
+    const { newItem, quantity, amount, requestedDate, supplier, itemType, category, subCategory, program, imagePreview } = formData;
+    if (editItem && newItem && quantity > 0 && amount >= 0 && requestedDate && supplier && itemType && category && subCategory) {
       try {
         const itemDoc = doc(db, "items", editItem.id);
         await updateDoc(itemDoc, {
-          text: editValue,
-          college: editCollege,
-          office: editOffice || null, // Optional: Set to null if not selected
-          department: editDepartment || null, // Optional: Set to null if not selected
-          quantity: editQuantity,
-          amount: editAmount,
-          requestedDate: new Date(editRequestedDate),
-          supplier: editSupplier,
-          itemType: editItemType,
+          text: newItem,
+          quantity,
+          amount,
+          requestedDate: new Date(requestedDate),
+          supplier,
+          itemType,
+          category,
+          subCategory,
+          program: category === "Academic" && subCategory !== "COLLEGE OF CRIMINOLOGY" ? program : "",
           image: imagePreview,
           updatedAt: Timestamp.now(),
         });
-        clearEditFields();
+        clearFields();
+        setEditItem(null);
+        setNotification({ message: "Item updated successfully!", type: "success" });
       } catch (error) {
         console.error("Error updating document: ", error);
+        setNotification({ message: "Error updating item. Please try again.", type: "error" });
       }
     }
   };
@@ -152,24 +240,29 @@ const ManageItem = () => {
     try {
       const itemDoc = doc(db, "items", id);
       await deleteDoc(itemDoc);
+      setNotification({ message: "Item deleted successfully!", type: "info" });
     } catch (error) {
       console.error("Error deleting document: ", error);
+      setNotification({ message: "Error deleting item. Please try again.", type: "error" });
     }
   };
 
-  const toggleFolderVisibility = (college) => {
-    setVisibleColleges((prevState) => ({
+  const toggleGroupVisibility = (group) => {
+    setVisibleGroups((prevState) => ({
       ...prevState,
-      [college]: !prevState[college],
+      [group]: !prevState[group],
     }));
   };
 
   const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.college]) {
-      acc[item.college] = { items: [], totalQuantity: 0 };
+    let folderKey = viewBy === 'category' ? item.category || "Other" : item.itemType || "Other";
+
+    if (!acc[folderKey]) {
+      acc[folderKey] = { items: [], totalQuantity: 0 };
     }
-    acc[item.college].items.push(item);
-    acc[item.college].totalQuantity += item.quantity;
+
+    acc[folderKey].items.push(item);
+    acc[folderKey].totalQuantity += item.quantity;
     return acc;
   }, {});
 
@@ -178,7 +271,10 @@ const ManageItem = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setFormData((prevData) => ({
+          ...prevData,
+          imagePreview: reader.result,
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -205,7 +301,10 @@ const ManageItem = () => {
         const blob = await response.blob();
         await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(storageRef);
-        setImagePreview(downloadURL);
+        setFormData((prevData) => ({
+          ...prevData,
+          imagePreview: downloadURL,
+        }));
       } catch (error) {
         console.error("Error uploading file: ", error);
       }
@@ -214,70 +313,116 @@ const ManageItem = () => {
   };
 
   const clearFields = () => {
-    setNewItem("");
-    setSelectedCollege("");
-    setSelectedOffice(""); // Clear office selection
-    setSelectedDepartment(""); // Clear department selection
-    setQuantity(1);
-    setAmount(0);
-    setRequestedDate("");
-    setSupplier("");
-    setItemType("Equipment");
-    setImagePreview(null);
-  };
-
-  const clearEditFields = () => {
-    setEditItem(null);
-    setEditValue("");
-    setEditCollege("");
-    setEditOffice(""); // Clear edit office selection
-    setEditDepartment(""); // Clear edit department selection
-    setEditQuantity(1);
-    setEditAmount(0);
-    setEditRequestedDate("");
-    setEditSupplier("");
-    setEditItemType("Equipment");
-    setImagePreview(null);
+    setFormData({
+      newItem: "",
+      quantity: "",
+      amount: "",
+      requestedDate: "",
+      supplier: "",
+      itemType: "Equipment",
+      category: "",
+      subCategory: "",
+      program: "",
+      imagePreview: null,
+    });
   };
 
   return (
     <div className="manage-item-container">
       <h1>Manage Items</h1>
+
+      {/* Notification Message */}
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
+
       <div className="add-item">
-        <input type="text" value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add new item" />
-        <select value={selectedCollege} onChange={(e) => setSelectedCollege(e.target.value)}>
-          <option value="">Select College (Optional)</option> {/* Changed to optional */}
-          {colleges.map((college) => (
-            <option key={college} value={college}>{college}</option>
-          ))}
-        </select>
-        
-        {/* Office Dropdown */}
-        <select value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
-          <option value="">Select Office (Optional)</option>
-          {offices.map((office) => (
-            <option key={office} value={office}>{office}</option>
+        <input
+          type="text"
+          name="newItem"
+          value={formData.newItem}
+          onChange={handleChange}
+          placeholder="Add new item"
+        />
+
+        <select
+          name="category"
+          value={formData.category}
+          onChange={handleChange}
+        >
+          <option value="">Select Category</option>
+          {categories.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
         </select>
 
-        {/* Department Dropdown */}
-        <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
-          <option value="">Select Department (Optional)</option>
-          {departments.map((department) => (
-            <option key={department} value={department}>{department}</option>
+        <select
+          name="subCategory"
+          value={formData.subCategory}
+          onChange={handleChange}
+          disabled={!formData.category}
+        >
+          <option value="">Select Sub-category</option>
+          {getSubCategoryOptions().map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
         </select>
 
-        <input type="number" value={quantity} min="1" onChange={(e) => setQuantity(parseInt(e.target.value))} />
-        <input type="number" value={amount} min="0" onChange={(e) => setAmount(parseFloat(e.target.value))} />
-        <input type="date" value={requestedDate} onChange={(e) => setRequestedDate(e.target.value)} />
-        <input type="text" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Supplier" />
-        <select value={itemType} onChange={(e) => setItemType(e.target.value)}>
+        {formData.category === "Academic" && formData.subCategory && formData.subCategory !== "COLLEGE OF CRIMINOLOGY" && (
+          <select
+            name="program"
+            value={formData.program}
+            onChange={handleChange}
+            disabled={!formData.subCategory}
+          >
+            <option value="">Select Program</option>
+            {getProgramOptions().map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <input
+          type="text"
+          name="quantity"
+          value={formData.quantity}
+          onChange={handleChange}
+          placeholder="Quantity"
+        />
+        <input
+          type="text"
+          name="amount"
+          value={formData.amount}
+          onChange={handleChange}
+          placeholder="Amount"
+        />
+
+        <input
+          type="date"
+          name="requestedDate"
+          value={formData.requestedDate}
+          onChange={handleChange}
+        />
+        <input
+          type="text"
+          name="supplier"
+          value={formData.supplier}
+          onChange={handleChange}
+          placeholder="Supplier"
+        />
+        <select name="itemType" value={formData.itemType} onChange={handleChange}>
           {itemTypes.map((type) => <option key={type} value={type}>{type}</option>)}
         </select>
         <input type="file" onChange={handleImageUpload} />
         <div>
-          <label>Save Option:</label>
           <select value={saveOption} onChange={handleSaveOptionChange}>
             <option value="local">Save Locally</option>
             <option value="system">Save to System</option>
@@ -288,78 +433,147 @@ const ManageItem = () => {
         <button onClick={handleAddItem}>Add Item</button>
       </div>
 
-      <div className="item-list">
-  {Object.entries(groupedItems).map(([college, { items, totalQuantity }]) => (
-    <div key={college} className="college-section">
-      <div className="college-header" onClick={() => toggleFolderVisibility(college)}>
-        {college} - Total Quantity: {totalQuantity}
+      <div className="filter-section">
+        <label>View By: </label>
+        <select value={viewBy} onChange={(e) => setViewBy(e.target.value)}>
+          <option value="category">Category</option>
+          <option value="itemType">Item Type</option>
+        </select>
       </div>
-      {visibleColleges[college] && (
-        <table>
-          <thead>
-            <tr>
-              <th>Item Name</th>
-              <th>College</th>
-              <th>Office</th>
-              <th>Department</th>
-              <th>Quantity</th>
-              <th>Amount</th>
-              <th>Requested Date</th>
-              <th>Supplier</th>
-              <th>Type</th>
-              <th>Image</th>
-              <th>Barcode</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.text}</td>
-                <td>{item.college}</td>
-                <td>{item.office}</td>
-                <td>{item.department ? item.department : 'Departments'}</td> {/* Label null as "Departments" */}
-                <td>{item.quantity}</td>
-                <td>{item.amount}</td>
-                <td>{item.requestedDate.toDate().toLocaleDateString()}</td>
-                <td>{item.supplier}</td>
-                <td>{item.itemType}</td>
-                <td>
-                  {item.image && <img src={item.image} alt="Item" width="50" />}
-                </td>
-                <td><Barcode value={item.barcode} /></td>
-                <td>
-                  <button onClick={() => handleEditItem(item)}>Edit</button>
-                  <button onClick={() => handleDeleteItem(item.id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  ))}
-</div>
 
+      <div className="item-list">
+        {Object.entries(groupedItems).map(([group, { items, totalQuantity }]) => (
+          <div key={group} className="group-section">
+            <div className="group-header" onClick={() => toggleGroupVisibility(group)}>
+              {group} - Total Quantity: {totalQuantity}
+            </div>
+            {visibleGroups[group] && (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Sub-category</th>
+                    <th>Program</th>
+                    <th>Quantity</th>
+                    <th>Amount</th>
+                    <th>Requested Date</th>
+                    <th>Supplier</th>
+                    <th>Type</th>
+                    <th>Image</th>
+                    <th>Barcode</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.text}</td>
+                      <td>{item.subCategory || "N/A"}</td>
+                      <td>{item.program || "N/A"}</td>
+                      <td>{item.quantity}</td>
+                      <td>{item.amount}</td>
+                      <td>{item.requestedDate.toDate().toLocaleDateString()}</td>
+                      <td>{item.supplier}</td>
+                      <td>{item.itemType}</td>
+                      <td>{item.image && <img src={item.image} alt="Item" width="50" />}</td>
+                      <td><Barcode value={item.barcode} /></td>
+                      <td>
+                        <button onClick={() => handleEditItem(item)}>Edit</button>
+                        <button onClick={() => handleDeleteItem(item.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        ))}
+      </div>
 
       {editItem && (
         <div className="edit-item">
           <h2>Edit Item</h2>
-          <input type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-          <select value={editCollege} onChange={(e) => setEditCollege(e.target.value)}>
-            <option value="">Select College (Optional)</option> {/* Changed to optional */}
-            {colleges.map((college) => (
-              <option key={college} value={college}>{college}</option>
+          <input
+            type="text"
+            name="newItem"
+            value={formData.newItem}
+            onChange={handleChange}
+            placeholder="Item name"
+          />
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+          >
+            <option value="">Select Category</option>
+            {categories.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
             ))}
           </select>
-          <input type="number" value={editQuantity} min="1" onChange={(e) => setEditQuantity(parseInt(e.target.value))} />
-          <input type="number" value={editAmount} min="0" onChange={(e) => setEditAmount(parseFloat(e.target.value))} />
-          <input type="date" value={editRequestedDate} onChange={(e) => setEditRequestedDate(e.target.value)} />
-          <input type="text" value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)} />
-          <select value={editItemType} onChange={(e) => setEditItemType(e.target.value)}>
+
+          <select
+            name="subCategory"
+            value={formData.subCategory}
+            onChange={handleChange}
+            disabled={!formData.category}
+          >
+            <option value="">Select Sub-category</option>
+            {getSubCategoryOptions().map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+
+          {formData.category === "Academic" && formData.subCategory && (
+            <select
+              name="program"
+              value={formData.program}
+              onChange={handleChange}
+              disabled={!formData.subCategory}
+            >
+              <option value="">Select Program</option>
+              {getProgramOptions().map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <input
+            type="number"
+            name="quantity"
+            value={formData.quantity}
+            min="1"
+            onChange={handleChange}
+          />
+          <input
+            type="number"
+            name="amount"
+            value={formData.amount}
+            min="0"
+            onChange={handleChange}
+          />
+          <input
+            type="date"
+            name="requestedDate"
+            value={formData.requestedDate}
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="supplier"
+            value={formData.supplier}
+            onChange={handleChange}
+          />
+          <select name="itemType" value={formData.itemType} onChange={handleChange}>
             {itemTypes.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
           <input type="file" onChange={handleImageUpload} />
+          {formData.imagePreview && <img src={formData.imagePreview} alt="Item Preview" width="50" />}
           <button onClick={handleSaveEdit}>Save</button>
         </div>
       )}

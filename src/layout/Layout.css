@@ -67,3 +67,10 @@
   padding: 20px;
   overflow-y: auto;
 }
+.nav-link.active {
+  background-color: #850b0c; /* Highlight color */
+  color: #fff; /* Text color for active link */
+}
+.nav-link.active .nav-icon {
+  color: #fff; /* Icon color for active link */
+}

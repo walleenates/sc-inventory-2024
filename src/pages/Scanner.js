@@ -14,7 +14,9 @@ const Scanner = () => {
   const [searchMode, setSearchMode] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [videoDevices, setVideoDevices] = useState([]);
-  const [searchedItem, setSearchedItem] = useState(null); // State to hold the searched item details
+  const [searchedItem, setSearchedItem] = useState(null);
+  const [deletedLogs, setDeletedLogs] = useState([]); // State for deleted logs
+  const [showDeletedLogs, setShowDeletedLogs] = useState(false); // State to control visibility of Deleted Logs
   const webcamRef = useRef(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
 
@@ -33,7 +35,7 @@ const Scanner = () => {
       const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
       setVideoDevices(videoDevices);
       if (videoDevices.length > 0) {
-        setSelectedDeviceId(videoDevices[0].deviceId); // Default to the first device
+        setSelectedDeviceId(videoDevices[0].deviceId);
       }
     };
 
@@ -45,40 +47,49 @@ const Scanner = () => {
     fetchItems();
   }, []);
 
-  // Handle barcode scan to update/delete or search item based on quantity
+  // Handle barcode scan to update/delete or search item
   const handleBarcodeScan = useCallback(async (barcode) => {
     const item = items.find(item => item.barcode === barcode);
     if (item) {
       if (searchMode) {
-        setSearchedItem(item); // Set the found item details for display
+        setSearchedItem(item);
         setMessage(`Found item: '${item.text}' - Quantity: ${item.quantity}`);
-        setCameraEnabled(false); // Automatically close the camera after a successful search
+        setCameraEnabled(false);
       } else {
         const updatedQuantity = item.quantity - quantityInput;
         const itemDoc = doc(db, 'items', item.id);
 
         if (updatedQuantity <= 0) {
           await deleteDoc(itemDoc);
+          setDeletedLogs(prevLogs => [
+            ...prevLogs,
+            {
+              id: item.id,
+              text: item.text,
+              barcode: item.barcode,
+              deletedAt: new Date().toLocaleString()
+            }
+          ]); // Add log entry for deleted item
           setMessage(`Item '${item.text}' deleted as quantity is now zero.`);
         } else {
           await updateDoc(itemDoc, { quantity: updatedQuantity });
           setMessage(`Updated item '${item.text}'. New quantity: ${updatedQuantity}.`);
         }
-        await fetchItems(); // Refresh the item list
+        await fetchItems();
       }
     } else {
       setMessage('Item not found. Please check the barcode and try again.');
-      setSearchedItem(null); // Reset the searched item if not found
+      setSearchedItem(null);
     }
   }, [items, quantityInput, searchMode]);
 
-  // Handle scanning from the camera for updating/deleting or searching for items
+  // Handle scanning from the camera
   const handleScanFromCamera = useCallback(() => {
     if (webcamRef.current) {
       codeReader.current.decodeFromVideoDevice(selectedDeviceId, webcamRef.current.video, (result, err) => {
         if (result) {
           handleBarcodeScan(result.text);
-          if (!searchMode) setCameraEnabled(false); // Stop the camera if not in search mode
+          if (!searchMode) setCameraEnabled(false);
         }
         if (err) {
           console.error(err);
@@ -96,7 +107,7 @@ const Scanner = () => {
     }
   }, [cameraEnabled, handleScanFromCamera]);
 
-  // Render barcode for each item and return the canvas element
+  // Render barcode for each item
   const renderBarcode = (barcode, elementId) => {
     if (barcode) {
       JsBarcode(`#${elementId}`, barcode, {
@@ -116,13 +127,13 @@ const Scanner = () => {
     });
   }, [items]);
 
-  // Handle barcode submission for update/delete
+  // Handle barcode submission
   const handleBarcodeSubmit = (e) => {
     e.preventDefault();
-    setCameraEnabled(true); // Enable the camera for scanning
+    setCameraEnabled(true);
   };
 
-  // Function to save barcode image with college name
+  // Save barcode image with college name
   const saveBarcodeImage = (barcode, college) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -131,7 +142,6 @@ const Scanner = () => {
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Generate barcode
     JsBarcode(canvas, barcode, {
       format: "CODE128",
       lineColor: "#000",
@@ -140,7 +150,6 @@ const Scanner = () => {
       displayValue: false
     });
 
-    // Draw college name on the canvas
     ctx.font = "10px Arial";
     ctx.fillStyle = "black";
     ctx.textAlign = "center";
@@ -156,9 +165,10 @@ const Scanner = () => {
   };
 
   return (
-    <div>
-      <h1>Scanner</h1>
-      <form onSubmit={handleBarcodeSubmit}>
+    <div className="customscanner-container">
+      <h1 className="customscanner-title">Scanner</h1>
+
+      <form onSubmit={handleBarcodeSubmit} className="customscanner-form">
         <input
           type="number"
           value={quantityInput}
@@ -166,21 +176,22 @@ const Scanner = () => {
           placeholder="Quantity"
           min="1"
           required
+          className="customscanner-input"
         />
-        <button type="submit-scanner">Get Item</button>
+        <button type="submit" className="customscanner-btn">Get Item</button>
       </form>
 
       <button onClick={() => {
         setSearchMode(true);
         setCameraEnabled(true);
-      }}>
+      }} className="customscanner-btn">
         Search Item through Scan
       </button>
 
-      {message && <p className="message">{message}</p>}
+      {message && <p className="customscanner-message">{message}</p>}
 
       {searchedItem && (
-        <div className="searched-item">
+        <div className="customscanner-searched-item">
           <h2>Searched Item Details:</h2>
           <p><strong>Name:</strong> {searchedItem.text}</p>
           <p><strong>Barcode:</strong> {searchedItem.barcode}</p>
@@ -190,12 +201,13 @@ const Scanner = () => {
         </div>
       )}
 
-      <div>
+      <div className="customscanner-camera-select">
         <label htmlFor="cameraSelect">Select Camera:</label>
         <select
           id="cameraSelect"
           value={selectedDeviceId}
           onChange={(e) => setSelectedDeviceId(e.target.value)}
+          className="customscanner-select"
         >
           {videoDevices.map(device => (
             <option key={device.deviceId} value={device.deviceId}>
@@ -206,22 +218,49 @@ const Scanner = () => {
       </div>
 
       {cameraEnabled && (
-        <div>
-          <Webcam ref={webcamRef} width="300" height="200" videoConstraints={{ deviceId: selectedDeviceId }} />
-          <button onClick={() => setCameraEnabled(false)}>Stop Camera</button>
+        <div className="customscanner-camera">
+          <Webcam ref={webcamRef} width="200" height="200" videoConstraints={{ deviceId: selectedDeviceId }} />
+          <button onClick={() => setCameraEnabled(false)} className="customscanner-btn">Stop Camera</button>
         </div>
       )}
 
-      <h2>All Items</h2>
-      <ul>
+      <h2 className="customscanner-items-title">All Items</h2>
+      <ul className="customscanner-item-list">
         {items.map(item => (
-          <li key={item.id}>
+          <li key={item.id} className="customscanner-item">
             {item.text} - Barcode: {item.barcode} - Quantity: {item.quantity} - College: {item.college} - Category: {item.category}
-            <svg id={`barcode-${item.id}`} style={{ cursor: 'pointer' }}></svg>
-            <button onClick={() => saveBarcodeImage(item.barcode, item.college)}>Save Barcode Image</button>
+            
+            <svg 
+              id={`barcode-${item.id}`} 
+              style={{ cursor: 'pointer', width: '150px', height: 'auto', display: 'inline-block' }} 
+            ></svg>
+
+            <button 
+              onClick={() => saveBarcodeImage(item.barcode, item.college)} 
+              className="customscanner-btn"
+            >
+              Save Barcode Image
+            </button>
           </li>
         ))}
       </ul>
+
+      <button onClick={() => setShowDeletedLogs(!showDeletedLogs)} className="customscanner-btn">
+        {showDeletedLogs ? 'Hide Deleted Items Log' : 'Show Deleted Items Log'}
+      </button>
+
+      {showDeletedLogs && (
+        <div>
+          <h2 className="customscanner-deleted-logs-title">Deleted Items Log</h2>
+          <ul className="customscanner-deleted-log-list">
+            {deletedLogs.map((log, index) => (
+              <li key={index} className="customscanner-log-item">
+                {log.text} - Barcode: {log.barcode} - Deleted At: {log.deletedAt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

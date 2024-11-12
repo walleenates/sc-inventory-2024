@@ -14,6 +14,7 @@
     "@testing-library/user-event": "^13.5.0",
     "@zxing/library": "^0.21.3",
     "emailjs-com": "^3.2.0",
+    "file-saver": "^2.0.5",
     "firebase": "^10.13.1",
     "jsbarcode": "^3.11.6",
     "jspdf": "^2.5.2",
@@ -26,6 +27,7 @@
     "react-router-dom": "^6.26.1",
     "react-scripts": "5.0.1",
     "react-webcam": "^7.2.0",
+    "twilio": "^5.3.5",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },

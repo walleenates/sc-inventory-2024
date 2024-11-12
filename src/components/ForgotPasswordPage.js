@@ -24,25 +24,34 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="forgot-password-container">
+    <div className="custom-forgot-password-container">
       <h1>Forgot Password</h1>
       <form onSubmit={handlePasswordReset}>
         <div>
-          <label>Email:</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email"
             required
+            className="custom-forgot-password-input"
           />
         </div>
-        <button type="submit">Send Reset Email</button>
-        {error && <p className="error">{error}</p>}
-        {success && <p className="success">{success}</p>}
+        <button type="submit" className="custom-forgot-password-submit-button">
+          Send Reset Email
+        </button>
+        {error && <p className="custom-forgot-password-error">{error}</p>}
+        {success && <p className="custom-forgot-password-success">{success}</p>}
       </form>
-      <button onClick={() => navigate('/')} className="forgotpasswordback-button">Back to Sign In</button>
+      <button 
+        onClick={() => navigate('/')} 
+        className="custom-forgot-password-back-button">
+        Back to Sign In
+      </button>
     </div>
   );
+
+
 };
 
 export default ForgotPasswordPage;
