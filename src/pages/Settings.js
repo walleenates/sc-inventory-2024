@@ -41,7 +41,7 @@ const Settings = () => {
     const isValidPassword = password === "your-actual-password"; // This is for demonstration
 
     if (isValidPassword) {
-      if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      if (window.confirm('Are you sure you want to delete your account? This action cannot be undone')) {
         try {
           // Send notification email
           await emailjs.send("service_qyi761q", "template_y26mfw8", {
