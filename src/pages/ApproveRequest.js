@@ -1,11 +1,11 @@
-  // src/pages/ApproveRequest.js
+
   import React, { useState, useEffect } from 'react';
   import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
   import { db } from '../firebase/firebase-config';
-  import emailjs from 'emailjs-com'; // Import EmailJS
+  import emailjs from 'emailjs-com';
   import './ApproveRequest.css';
 
-  // Categories and Subcategories
+
   const categories = ["Equipment", "Office Supplies", "Books", "Electrical Parts"];
   const nonAcademicOptions = [
     "FINANCE OFFICE", "OFFICE OF THE PRESIDENT", "HUMAN RESOURCE", "LIBRARY", "MANAGEMENT INFORMATION SYSTEM",
@@ -18,7 +18,7 @@
     "COLLEGE OF ENGINEERING", "BED"
   ];
 
-  // Academic Programs
+
   const academicPrograms = {
     "COLLEGE OF ARTS AND SCIENCES": [
       "Bachelor Of Arts In English Language",
@@ -82,6 +82,11 @@
     const [formData, setFormData] = useState({ purchaseDate: '', requestorEmail: '', requestorPhone: '' }); // Add requestorPhone
     const [selectedAction, setSelectedAction] = useState('');
     const [selectedItems, setSelectedItems] = useState([]);
+    const [imagePreview, setImagePreview] = useState(''); // For image preview
+const [cameraActive, setCameraActive] = useState(false); // For toggling camera
+
+
+
     
     
     useEffect(() => {
@@ -104,13 +109,18 @@
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      const isDuplicate = requests.some(request => request.uniqueId === requestDetails.uniqueId && request.id !== editingRequest?.id);
+      const isDuplicate = requests.some(
+        (request) => request.uniqueId === requestDetails.uniqueId && request.id !== editingRequest?.id
+      );
       if (isDuplicate) {
         setErrorMessage('Error: Request Number (Unique ID) must be unique.');
         return;
       }
-      submitRequest();
+    
+      await submitRequest();
+      resetForm(); // Reset the form and clear the image preview
     };
+    
 
     const submitRequest = async () => {
       try {
@@ -125,8 +135,9 @@
           await addDoc(collection(db, 'requests'), {
             ...requestDetails,
             requestDate: new Date(requestDetails.requestDate).getTime(),
+            requestorEmail: formData.requestorEmail, // Include email
             approved: false,
-          });
+        });
         }
         resetForm();
       } catch (error) {
@@ -145,10 +156,13 @@
         requestDate: '',
         requestPurpose: '',
         approved: false,
+        imageUrl: '',
       });
       setEditingRequest(null);
       setErrorMessage('');
+      setImagePreview(''); // Clear the image preview
     };
+    
 
     const deleteRequest = async (id) => {
       try {
@@ -276,42 +290,100 @@
       setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-      const handleEmailSubmit = async (e) => {
-        e.preventDefault();
-        const itemsUpdated = currentRequest.itemName.split(',').map(item => {
+    const handleEmailSubmit = async (e) => {
+      e.preventDefault();
+      const itemsUpdated = currentRequest.itemName.split(',').map(item => {
           if (selectedItems.includes(item.trim())) {
-            return selectedAction === "Purchased" ? `${item.trim()} ✔️` : `${item.trim()} ❌`;
+              return selectedAction === "Purchased" ? `${item.trim()} ✔️` : `${item.trim()} ❌`;
           }
           return item.trim();
-        });
-
+      });
+  
       const requestRef = doc(db, 'requests', currentRequest.id);
       
-      // Check if all items are marked as done (✔️ or ❌)
+      // Check if all items are processed (marked as ✔️ or ❌)
       const allItemsDone = itemsUpdated.every(item => item.includes('✔️') || item.includes('❌'));
       
       try {
-        await updateDoc(requestRef, {
-          itemName: itemsUpdated.join(', '),
-          approved: allItemsDone // Automatically mark as done if all items are processed
-        });
-
-        // Prepare email template parameters
-        const templateParams = {
-          to_email: 'walleenates808@gmail.com', // Assuming you want to send to the requestor's email
-          items: itemsUpdated.join(', '),
-          action: selectedAction,
-          purchaseDate: formData.purchaseDate,
-        };
-
-        // Send email
-        await emailjs.send('service_bl8cece', 'template_2914ned', templateParams, 'BMRt6JigJjznZL-FA');
-
-        closeModal();
+          await updateDoc(requestRef, {
+              itemName: itemsUpdated.join(', '),
+              approved: allItemsDone  // Mark as done if all items are processed
+          });
+  
+          // Prepare email template parameters with context
+          const templateParams = {
+              to_email: currentRequest.requestorEmail || 'walleenates808@gmail.com', // Use requestor's email if provided
+              items: itemsUpdated.join(', '),
+              action: selectedAction,
+              purchaseDate: formData.purchaseDate,
+              requestPurpose: currentRequest.requestPurpose, // Adding request purpose
+              college: currentRequest.college,               // Adding college
+              department: currentRequest.department,         // Adding department if needed
+              uniqueId: currentRequest.uniqueId              // Including unique request ID for reference
+          };
+  
+          // Send email using EmailJS
+          await emailjs.send('service_bl8cece', 'template_2914ned', templateParams, 'BMRt6JigJjznZL-FA');
+  
+          closeModal();
       } catch (error) {
-        setErrorMessage('Error processing request or sending email.');
+          setErrorMessage('Error processing request or sending email.');
       }
-    };
+  };
+  
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+  
+      setRequestDetails((prev) => ({
+        ...prev,
+        imageUrl: URL.createObjectURL(file), // Save image URL for database
+      }));
+    }
+  };
+  const startCamera = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = stream;
+        video.play();
+        setCameraActive(true);
+      })
+      .catch((err) => {
+        console.error('Camera access denied:', err);
+      });
+  };
+  
+  const captureImage = () => {
+    const canvas = document.createElement('canvas');
+    const video = document.getElementById('cameraVideo');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL('image/png');
+    setImagePreview(imageData);
+  
+    setRequestDetails((prev) => ({
+      ...prev,
+      imageUrl: imageData, // Save captured image as Base64
+    }));
+    stopCamera();
+  };
+  
+  const stopCamera = () => {
+    const video = document.getElementById('cameraVideo');
+    if (video?.srcObject) {
+      const tracks = video.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+      video.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+    
 
     return (
       <div className="approve-request">
@@ -331,25 +403,25 @@
 
         {/* Request Form */}
         <form onSubmit={handleSubmit}>
-          <label>Item Name (separate by commas): 
-            <input type="text" name="itemName" value={requestDetails.itemName} onChange={handleInputChange} required />
-          </label>
-          <label>Request Purpose: 
-            <input type="text" name="requestPurpose" value={requestDetails.requestPurpose} onChange={handleInputChange} required />
-          </label>
-          <label>Category: 
-            <select name="category" value={requestDetails.category} onChange={handleInputChange}>
-              <option value="">Select Category</option>
-              {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </label>
-          <label>Main Category: 
-            <select name="college" value={requestDetails.college} onChange={handleInputChange}>
-              <option value="">Select Main Category</option>
-              <option value="Non Academic">Non Academic</option>
-              <option value="Academic">Academic</option>
-            </select>
-          </label>
+  <label>Item Name (separate by commas): 
+    <input type="text" name="itemName" value={requestDetails.itemName} onChange={handleInputChange} required />
+  </label>
+  <label>Request Purpose: 
+    <input type="text" name="requestPurpose" value={requestDetails.requestPurpose} onChange={handleInputChange} required />
+  </label>
+  <label>Category: 
+    <select name="category" value={requestDetails.category} onChange={handleInputChange}>
+      <option value="">Select Category</option>
+      {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+    </select>
+  </label>
+  <label>Main Category: 
+    <select name="college" value={requestDetails.college} onChange={handleInputChange}>
+      <option value="">Select Main Category</option>
+      <option value="Non Academic">Non Academic</option>
+      <option value="Academic">Academic</option>
+    </select>
+  </label>
           {requestDetails.college === "Non Academic" && (
             <label>Subcategory: 
               <select name="department" value={requestDetails.department} onChange={handleInputChange}>
@@ -380,8 +452,35 @@
           )}
           <label>Request Date: <input type="date" name="requestDate" value={requestDetails.requestDate} onChange={handleInputChange} required /></label>
           <label>Unique ID: <input type="text" name="uniqueId" value={requestDetails.uniqueId} onChange={handleInputChange} required /></label>
-          <button type="submit">{editingRequest ? 'Update Request' : 'Submit Request'}</button>
+          
+          <div className="image-upload-section">
+    <h3>Upload Image</h3>
+    <input type="file" accept="image/*" onChange={handleImageUpload} />
+  </div>
+  <div className="camera-section">
+    <h3>Capture Image</h3>
+    <button type="button" onClick={startCamera} disabled={cameraActive}>
+      Open Camera
+    </button>
+    {cameraActive && (
+      <div className="camera-preview">
+        <video id="cameraVideo" autoPlay></video>
+        <button type="button" onClick={captureImage}>Capture</button>
+        <button type="button" onClick={stopCamera}>Cancel</button>
+      </div>
+    )}
+  </div>
+
+  {/* Image Preview Section */}
+  {imagePreview && (
+    <div className="image-preview">
+      <h4>Preview:</h4>
+      <img src={imagePreview} alt="Uploaded or Captured" />
+    </div>
+  )}
+  <button type="submit">{editingRequest ? 'Update Request' : 'Submit Request'}</button>
         </form>
+        
 
         {/* Display Submitted Requests */}
         <h2>Submitted Requests</h2>
@@ -442,9 +541,15 @@
             <input type="date" name="purchaseDate" value={formData.purchaseDate} onChange={handleFormDataChange} required />
           </label>
           <label>
-            Requestor Email:
-            <input type="email" name="requestorEmail" value={formData.requestorEmail} onChange={handleFormDataChange} required />
-          </label>
+    Requestor Email:
+    <input
+        type="email"
+        name="requestorEmail"
+        value={formData.requestorEmail}
+        onChange={handleFormDataChange}
+        required
+    />
+</label>
           <label>
             Requestor's Phone:
             <input type="tel" name="requestorPhone" value={formData.requestorPhone} onChange={handleFormDataChange} required />
